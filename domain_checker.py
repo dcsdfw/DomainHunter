@@ -17,9 +17,14 @@ def check_domains(domains, delay=0.5, timeout=3):
     
     for domain in domains:
         try:
-            # Try to connect to the domain
-            response = requests.head(f"http://{domain}", timeout=timeout)
-            status = "Live" if response.status_code < 400 else "Not Live"
+            # First try HTTPS
+            https_response = requests.get(f"https://{domain}", timeout=timeout, allow_redirects=True)
+            if https_response.status_code < 400:
+                status = "Live"
+            else:
+                # If HTTPS fails, try HTTP
+                http_response = requests.get(f"http://{domain}", timeout=timeout, allow_redirects=True)
+                status = "Live" if http_response.status_code < 400 else "Not Live"
         except requests.exceptions.ConnectionError:
             # This likely means the domain doesn't exist or isn't responding
             status = "Not Live"
