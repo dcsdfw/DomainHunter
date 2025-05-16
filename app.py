@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 from domain_checker import check_domains
 from city_finder import find_cities_in_radius, get_city_coordinates
+from hardcoded_cities import find_nearby_cities
 
 st.set_page_config(
     page_title="Domain Availability Checker",
@@ -44,35 +45,40 @@ with tab2:
             st.error("Please enter a major city.")
         else:
             with st.spinner(f"Finding cities within {radius} miles of {major_city}..."):
-                # Check if the city coordinates can be found
-                coords = get_city_coordinates(major_city, state_code)
-                if not coords:
-                    st.error(f"Could not find coordinates for {major_city}. Please check the city name and try again.")
-                else:
-                    nearby_cities = find_cities_in_radius(major_city, radius, state_code, max_cities)
-                    
-                    if not nearby_cities:
-                        st.warning(f"No cities found within {radius} miles of {major_city}.")
+                # First try the hardcoded city data (faster and more reliable)
+                nearby_cities = find_nearby_cities(major_city, radius, max_cities)
+                
+                if not nearby_cities:
+                    # If not found in hardcoded data, try the geocoding method
+                    st.info(f"Searching for cities near {major_city}...")
+                    coords = get_city_coordinates(major_city, state_code)
+                    if not coords:
+                        st.error(f"Could not find coordinates for {major_city}. Please check the city name and try again.")
                     else:
-                        # Display the found cities
-                        st.success(f"Found {len(nearby_cities)} cities within {radius} miles of {major_city}!")
-                        
-                        # Create a DataFrame with the cities and distances
-                        city_df = pd.DataFrame(nearby_cities, columns=["City", "Distance (miles)"])
-                        city_df["Distance (miles)"] = city_df["Distance (miles)"].round(1)
-                        
-                        # Display the cities in a table
-                        st.dataframe(city_df)
-                        
-                        # Button to use these cities
-                        if st.button("Use These Cities for Domain Check"):
-                            # Extract just the city names
-                            cities_list = city_df["City"].tolist()
-                            # Set the value in the first tab's text area
-                            cities_input = "\n".join(cities_list)
-                            st.session_state["cities_input"] = cities_input
-                            # Switch to the first tab
-                            st.rerun()
+                        nearby_cities = find_cities_in_radius(major_city, radius, state_code, max_cities)
+                
+                if not nearby_cities:
+                    st.warning(f"No cities found within {radius} miles of {major_city}. Try a larger radius or a different major city.")
+                else:
+                    # Display the found cities
+                    st.success(f"Found {len(nearby_cities)} cities within {radius} miles of {major_city}!")
+                    
+                    # Create a DataFrame with the cities and distances
+                    city_df = pd.DataFrame(nearby_cities, columns=["City", "Distance (miles)"])
+                    city_df["Distance (miles)"] = city_df["Distance (miles)"].round(1)
+                    
+                    # Display the cities in a table
+                    st.dataframe(city_df)
+                    
+                    # Button to use these cities
+                    if st.button("Use These Cities for Domain Check"):
+                        # Extract just the city names
+                        cities_list = city_df["City"].tolist()
+                        # Set the value in the first tab's text area
+                        cities_input = "\n".join(cities_list)
+                        st.session_state["cities_input"] = cities_input
+                        # Switch to the first tab
+                        st.rerun()
 
 # Retrieve cities from session state if available
 if "cities_input" in st.session_state:
