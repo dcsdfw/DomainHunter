@@ -9,116 +9,6 @@ st.set_page_config(
     page_icon="🌐"
 )
 
-st.title("Domain Availability Checker")
-
-# Input for business type
-business_type = st.text_input("Business Type", value="janitorial")
-
-# Set active tab from session state (default to 0)
-active_tab = 0
-if "active_tab" in st.session_state:
-    active_tab = st.session_state["active_tab"]
-    # Clear after use
-    del st.session_state["active_tab"]
-
-# Create tabs for different input methods
-tab1, tab2 = st.tabs(["Enter Cities Manually", "Find Cities by Radius"])
-
-# Set the active tab
-tabs = [tab1, tab2]
-current_tab = tabs[active_tab]
-
-with tab1:
-    # Input for cities
-    cities_input = st.text_area(
-        "Enter cities (one per line)",
-        height=150,
-        help="Enter each city on a new line"
-    )
-
-with tab2:
-    col1, col2 = st.columns(2)
-    
-    with col1:
-        major_city = st.text_input("Major City", placeholder="e.g. Dallas")
-        state_code = st.text_input("State (optional)", placeholder="e.g. TX", max_chars=2,
-                                  help="Two-letter state code to improve search accuracy")
-    
-    with col2:
-        radius = st.slider("Radius (miles)", 5, 100, 25, 5,
-                          help="Search for cities within this distance")
-        max_cities = st.slider("Max Cities", 5, 50, 20, 5,
-                              help="Maximum number of cities to include")
-    
-    # Button to find nearby cities
-    if st.button("Find Nearby Cities"):
-        if not major_city:
-            st.error("Please enter a major city.")
-        else:
-            with st.spinner(f"Finding cities within {radius} miles of {major_city}..."):
-                # First try the hardcoded city data (faster and more reliable)
-                nearby_cities = find_nearby_cities(major_city, radius, max_cities)
-                
-                if not nearby_cities:
-                    # If not found in hardcoded data, try the geocoding method
-                    st.info(f"Searching for cities near {major_city}...")
-                    coords = get_city_coordinates(major_city, state_code)
-                    if not coords:
-                        st.error(f"Could not find coordinates for {major_city}. Please check the city name and try again.")
-                    else:
-                        nearby_cities = find_cities_in_radius(major_city, radius, state_code, max_cities)
-                
-                if not nearby_cities:
-                    st.warning(f"No cities found within {radius} miles of {major_city}. Try a larger radius or a different major city.")
-                else:
-                    # Display the found cities
-                    st.success(f"Found {len(nearby_cities)} cities within {radius} miles of {major_city}!")
-                    
-                    # Create a DataFrame with the cities and distances
-                    city_df = pd.DataFrame(nearby_cities, columns=["City", "Distance (miles)"])
-                    city_df["Distance (miles)"] = city_df["Distance (miles)"].round(1)
-                    
-                    # Display the cities in a table
-                    st.dataframe(city_df)
-                    
-                    # Create a button to use these cities
-                    cities_list = city_df["City"].tolist()
-                    cities_string = "\n".join(cities_list)
-                    
-                    col1, col2 = st.columns(2)
-                    with col1:
-                        if st.button("Use These Cities for Domain Check"):
-                            # Store in session state for first tab to use
-                            st.session_state["cities_input"] = cities_string
-                            # Set current tab to first tab (index 0)
-                            st.session_state["active_tab"] = 0
-                            st.rerun()
-                    
-                    with col2:
-                        # Button to immediately check domains with these cities
-                        if st.button("Check Domains for These Cities"):
-                            # Store cities in session state for immediate use
-                            st.session_state["cities_for_check"] = cities_list
-                            # Skip to the check domains section
-                            st.session_state["run_check"] = True
-                            st.rerun()
-
-# Retrieve cities from session state if available
-if "cities_input" in st.session_state:
-    cities_input = st.session_state["cities_input"]
-    del st.session_state["cities_input"]  # Clear after use
-
-# Parameters for domain checking - placed outside tabs
-with st.expander("Advanced Settings"):
-    delay = st.slider("Delay between requests (seconds)", 0.1, 2.0, 0.5, 0.1,
-                     help="Higher values reduce the risk of being blocked")
-    timeout = st.slider("Request timeout (seconds)", 1, 10, 3, 1,
-                       help="Time to wait for a domain to respond")
-
-    # Domain TLD options
-    tld_options = ["com", "net", "org", "io", "co"]
-    selected_tld = st.selectbox("Domain Extension (TLD)", tld_options, index=0)
-
 # Function to perform domain checks
 def check_city_domains(cities_to_check, business_type, selected_tld, delay, timeout):
     if not cities_to_check:
@@ -196,25 +86,106 @@ def check_city_domains(cities_to_check, business_type, selected_tld, delay, time
         mime="text/csv"
     )
 
-# Check if we should run the domain check directly from the city search
-if "cities_for_check" in st.session_state and "run_check" in st.session_state and st.session_state["run_check"]:
-    cities_to_check = st.session_state["cities_for_check"]
-    # Clear the session state
-    del st.session_state["cities_for_check"]
-    del st.session_state["run_check"]
-    # Run the domain check
-    check_city_domains(cities_to_check, business_type, selected_tld, delay, timeout)
-# Normal check button
-elif st.button("Check Domain Availability", type="primary"):
-    if not cities_input:
-        st.error("Please enter at least one city or use the radius search to find cities.")
-    else:
-        cities_to_check = [city.strip() for city in cities_input.split('\n') if city.strip()]
-        
-        if not cities_to_check:
-            st.error("No valid cities found in the input.")
+# Main App UI
+st.title("Domain Availability Checker")
+
+# Input for business type
+business_type = st.text_input("Business Type", value="janitorial")
+
+# Parameters for domain checking - placed at top level for access everywhere
+with st.expander("Advanced Settings"):
+    delay = st.slider("Delay between requests (seconds)", 0.1, 2.0, 0.5, 0.1,
+                     help="Higher values reduce the risk of being blocked")
+    timeout = st.slider("Request timeout (seconds)", 1, 10, 3, 1,
+                       help="Time to wait for a domain to respond")
+
+    # Domain TLD options
+    tld_options = ["com", "net", "org", "io", "co"]
+    selected_tld = st.selectbox("Domain Extension (TLD)", tld_options, index=0)
+
+# Create tabs for different input methods
+tab1, tab2 = st.tabs(["Enter Cities Manually", "Find Cities by Radius"])
+
+# Variables to store the city list from radius search
+radius_search_cities = []
+show_radius_results = False
+
+with tab1:
+    # Input for cities
+    cities_input = st.text_area(
+        "Enter cities (one per line)",
+        height=150,
+        help="Enter each city on a new line"
+    )
+    
+    # Check domains button for manual entry
+    if st.button("Check Domain Availability", type="primary"):
+        if not cities_input:
+            st.error("Please enter at least one city or use the radius search to find cities.")
         else:
-            check_city_domains(cities_to_check, business_type, selected_tld, delay, timeout)
+            cities_to_check = [city.strip() for city in cities_input.split('\n') if city.strip()]
+            
+            if not cities_to_check:
+                st.error("No valid cities found in the input.")
+            else:
+                check_city_domains(cities_to_check, business_type, selected_tld, delay, timeout)
+
+with tab2:
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        major_city = st.text_input("Major City", placeholder="e.g. Dallas")
+        state_code = st.text_input("State (optional)", placeholder="e.g. TX", max_chars=2,
+                                  help="Two-letter state code to improve search accuracy")
+    
+    with col2:
+        radius = st.slider("Radius (miles)", 5, 100, 25, 5,
+                          help="Search for cities within this distance")
+        max_cities = st.slider("Max Cities", 5, 50, 20, 5,
+                              help="Maximum number of cities to include")
+    
+    # Button to find nearby cities
+    search_clicked = st.button("Find Nearby Cities")
+    
+    if search_clicked:
+        if not major_city:
+            st.error("Please enter a major city.")
+        else:
+            with st.spinner(f"Finding cities within {radius} miles of {major_city}..."):
+                # First try the hardcoded city data (faster and more reliable)
+                nearby_cities = find_nearby_cities(major_city, radius, max_cities)
+                
+                if not nearby_cities:
+                    # If not found in hardcoded data, try the geocoding method
+                    st.info(f"Searching for cities near {major_city}...")
+                    coords = get_city_coordinates(major_city, state_code)
+                    if not coords:
+                        st.error(f"Could not find coordinates for {major_city}. Please check the city name and try again.")
+                    else:
+                        nearby_cities = find_cities_in_radius(major_city, radius, state_code, max_cities)
+                
+                if not nearby_cities:
+                    st.warning(f"No cities found within {radius} miles of {major_city}. Try a larger radius or a different major city.")
+                else:
+                    # Display the found cities
+                    st.success(f"Found {len(nearby_cities)} cities within {radius} miles of {major_city}!")
+                    
+                    # Create a DataFrame with the cities and distances
+                    city_df = pd.DataFrame(nearby_cities, columns=["City", "Distance (miles)"])
+                    city_df["Distance (miles)"] = city_df["Distance (miles)"].round(1)
+                    
+                    # Display the cities in a table
+                    st.dataframe(city_df)
+                    
+                    # Get the city list and store it
+                    cities_list = city_df["City"].tolist()
+                    
+                    # Display check domains button
+                    check_radius_domains = st.button("Check Domains for These Cities", type="primary")
+                    
+                    if check_radius_domains:
+                        # Run the domain check directly with these cities
+                        check_city_domains(cities_list, business_type, selected_tld, delay, timeout)
 
 # Display some example instructions
 with st.expander("How to use this tool"):
