@@ -32,6 +32,8 @@ if 'last_request_time' not in st.session_state:
     st.session_state.last_request_time = time.time()
 if 'session_id' not in st.session_state:
     st.session_state.session_id = secrets.token_hex(16)
+if 'nearby_cities_df' not in st.session_state:
+    st.session_state.nearby_cities_df = None
 
 # Create a directory for saved searches if it doesn't exist
 if not os.path.exists(SAVED_SEARCHES_DIR):
@@ -323,22 +325,23 @@ with tab2:
                 nearby_cities = find_nearby_cities(city, radius)
                 if nearby_cities:
                     st.success(f"Found {len(nearby_cities)} cities within {radius} miles of {city}")
-                    # Convert the list of lists to a DataFrame for better display
                     df = pd.DataFrame(nearby_cities, columns=['City', 'Distance (miles)'])
-                    df = df.sort_values('Distance (miles)')  # Sort by distance
-                    st.dataframe(df, use_container_width=True)
-                    
-                    # Add a button to check domains for these cities
-                    if st.button("Check Domains for These Cities"):
-                        cities = df['City'].tolist()
-                        with st.spinner("Checking domain availability..."):
-                            # Format domains before checking
-                            domains_to_check = [f"{city.lower().replace(' ', '')}{business_type}.{selected_tld}" for city in cities]
-                            results = check_domains(domains_to_check, delay, timeout)
-                            display_results(results)
-                            save_search(results, business_type, selected_tld, cities)
+                    df = df.sort_values('Distance (miles)')
+                    st.session_state.nearby_cities_df = df
                 else:
+                    st.session_state.nearby_cities_df = None
                     st.error("No cities found or error occurred")
+
+    # Always display the DataFrame if it exists
+    if st.session_state.nearby_cities_df is not None:
+        st.dataframe(st.session_state.nearby_cities_df, use_container_width=True)
+        if st.button("Check Domains for These Cities"):
+            cities = st.session_state.nearby_cities_df['City'].tolist()
+            with st.spinner("Checking domain availability..."):
+                domains_to_check = [f"{city.lower().replace(' ', '')}{business_type}.{selected_tld}" for city in cities]
+                results = check_domains(domains_to_check, delay, timeout)
+                display_results(results)
+                save_search(results, business_type, selected_tld, cities)
 
 with tab3:
     # Display saved searches
