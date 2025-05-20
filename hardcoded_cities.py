@@ -60,8 +60,8 @@ def find_nearby_cities(center_city, radius_miles, max_cities=20):
     Returns:
         list: List of (city_name, distance) tuples within the radius
     """
-    # Normalize the center city name to lowercase for lookup
-    center_city_norm = center_city.lower()
+    # Normalize the center city name to lowercase for lookup, and strip whitespace
+    center_city_norm = center_city.strip().lower()
     
     # Check if we have pre-calculated data for this city
     if center_city_norm in NEARBY_CITIES:
