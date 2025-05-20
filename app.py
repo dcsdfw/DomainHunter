@@ -134,15 +134,16 @@ def display_results(results, key_prefix=None):
     st.subheader("Results")
     st.dataframe(df.style.map(highlight_status, subset=['Status']))
     
-    # Show clickable links for available domains
+    # Show Register buttons for available domains
     available_domains = [row[0] for row in results if row[1] == "Available"]
     if available_domains:
         st.markdown("### Register Available Domains")
         for domain in available_domains:
-            st.markdown(
-                f'<a href="https://www.namecheap.com/domains/registration/results/?domain={domain}&aff=529630" target="_blank">Register {domain} on Namecheap</a>',
-                unsafe_allow_html=True
-            )
+            namecheap_url = f"https://www.namecheap.com/domains/registration/results/?domain={domain}&aff=529630"
+            button_key = f"register_{domain}_{key_prefix if key_prefix is not None else ''}"
+            if st.button(f"Register {domain} on Namecheap", key=button_key):
+                js = f"window.open('{namecheap_url}')"
+                st.markdown(f"<script>{js}</script>", unsafe_allow_html=True)
     
     # Count availability stats
     available_count = df[df['Status'] == 'Available'].shape[0]
