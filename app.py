@@ -3,18 +3,134 @@ import pandas as pd
 from domain_checker import check_domains
 from city_finder import find_cities_in_radius, get_city_coordinates
 from hardcoded_cities import find_nearby_cities
+import json
+from datetime import datetime
+import os
+import time
+import re
+from functools import wraps
+import secrets
+import hashlib
 
-st.set_page_config(
-    page_title="Domain Availability Checker",
-    page_icon="🌐"
-)
+# Security configurations
+MAX_REQUESTS_PER_MINUTE = 30
+MAX_CITIES_PER_SEARCH = 50
+ALLOWED_TLDS = ["com", "net", "org", "io", "co"]
+MAX_BUSINESS_TYPE_LENGTH = 30
+SAVED_SEARCHES_DIR = "saved_searches"
 
-# Function to perform domain checks
+# Initialize session state variables if they don't exist
+if 'cities_list' not in st.session_state:
+    st.session_state.cities_list = []
+if 'show_domain_check' not in st.session_state:
+    st.session_state.show_domain_check = False
+if 'saved_searches' not in st.session_state:
+    st.session_state.saved_searches = []
+if 'request_count' not in st.session_state:
+    st.session_state.request_count = 0
+if 'last_request_time' not in st.session_state:
+    st.session_state.last_request_time = time.time()
+if 'session_id' not in st.session_state:
+    st.session_state.session_id = secrets.token_hex(16)
+
+# Create a directory for saved searches if it doesn't exist
+if not os.path.exists(SAVED_SEARCHES_DIR):
+    os.makedirs(SAVED_SEARCHES_DIR)
+
+def rate_limit(func):
+    """Decorator to implement rate limiting"""
+    @wraps(func)
+    def wrapper(*args, **kwargs):
+        current_time = time.time()
+        # Reset counter if a minute has passed
+        if current_time - st.session_state.last_request_time >= 60:
+            st.session_state.request_count = 0
+            st.session_state.last_request_time = current_time
+        
+        # Check if rate limit exceeded
+        if st.session_state.request_count >= MAX_REQUESTS_PER_MINUTE:
+            st.error("Rate limit exceeded. Please wait a minute before making more requests.")
+            return None
+        
+        st.session_state.request_count += 1
+        return func(*args, **kwargs)
+    return wrapper
+
+def sanitize_input(text):
+    """Sanitize user input to prevent injection attacks"""
+    # Remove any non-alphanumeric characters except spaces and basic punctuation
+    sanitized = re.sub(r'[^a-zA-Z0-9\s\-\.]', '', text)
+    return sanitized.strip()
+
+def validate_business_type(business_type):
+    """Validate business type input"""
+    if not business_type:
+        return False, "Business type cannot be empty"
+    if len(business_type) > MAX_BUSINESS_TYPE_LENGTH:
+        return False, f"Business type must be {MAX_BUSINESS_TYPE_LENGTH} characters or less"
+    if not re.match(r'^[a-zA-Z0-9\s\-\.]+$', business_type):
+        return False, "Business type contains invalid characters"
+    return True, ""
+
+def validate_city(city):
+    """Validate city name input"""
+    if not city:
+        return False, "City name cannot be empty"
+    if not re.match(r'^[a-zA-Z\s\-\.]+$', city):
+        return False, "City name contains invalid characters"
+    return True, ""
+
+def load_saved_searches():
+    """Load saved searches from JSON files"""
+    saved_searches = []
+    for filename in os.listdir(SAVED_SEARCHES_DIR):
+        if filename.endswith('.json'):
+            with open(os.path.join(SAVED_SEARCHES_DIR, filename), 'r') as f:
+                saved_searches.append(json.load(f))
+    return saved_searches
+
+def save_search(results, business_type, selected_tld):
+    """Save search results to a JSON file"""
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    filename = f"{SAVED_SEARCHES_DIR}/search_{timestamp}.json"
+    
+    search_data = {
+        'timestamp': timestamp,
+        'business_type': business_type,
+        'tld': selected_tld,
+        'results': results
+    }
+    
+    with open(filename, 'w') as f:
+        json.dump(search_data, f)
+    
+    st.session_state.saved_searches = load_saved_searches()
+
+@rate_limit
 def check_city_domains(cities_to_check, business_type, selected_tld, delay, timeout):
+    """Perform domain checks with rate limiting and input validation"""
+    # Validate inputs
     if not cities_to_check:
         st.error("No cities provided for domain check.")
         return
-        
+    
+    if len(cities_to_check) > MAX_CITIES_PER_SEARCH:
+        st.error(f"Maximum {MAX_CITIES_PER_SEARCH} cities allowed per search.")
+        return
+    
+    is_valid, message = validate_business_type(business_type)
+    if not is_valid:
+        st.error(message)
+        return
+    
+    if selected_tld not in ALLOWED_TLDS:
+        st.error("Invalid TLD selected.")
+        return
+    
+    # Sanitize inputs
+    business_type = sanitize_input(business_type)
+    cities_to_check = [sanitize_input(city) for city in cities_to_check]
+    
     # Display information
     st.info(f"Checking {len(cities_to_check)} domains with business type: {business_type} and TLD: .{selected_tld}")
     
@@ -49,14 +165,14 @@ def check_city_domains(cities_to_check, business_type, selected_tld, delay, time
     # Convert to pandas DataFrame for final display
     df = pd.DataFrame(results, columns=["Domain", "Status"])
     
-    # Add color coding based on availability
+    # Add color coding based on availability with better contrast
     def highlight_status(val):
         if val == "Available":
-            return 'background-color: #CCFFCC'  # Light green
+            return 'background-color: #2E7D32; color: white'  # Dark green with white text
         elif "Active Website" in val:
-            return 'background-color: #FFCCCC'  # Light red
+            return 'background-color: #C62828; color: white'  # Dark red with white text
         else:
-            return 'background-color: #FFFFCC'  # Light yellow
+            return 'background-color: #F9A825; color: black'  # Dark yellow with black text
     
     # Show results with styling
     st.subheader("Results")
@@ -77,6 +193,11 @@ def check_city_domains(cities_to_check, business_type, selected_tld, delay, time
     with col3:
         st.metric("Registered (Inactive)", registered_inactive_count, f"{registered_inactive_count/len(cities_to_check):.0%}")
     
+    # Add save search button
+    if st.button("Save This Search"):
+        save_search(results, business_type, selected_tld)
+        st.success("Search saved successfully!")
+    
     # Add download button for CSV
     csv = df.to_csv(index=False)
     st.download_button(
@@ -86,29 +207,44 @@ def check_city_domains(cities_to_check, business_type, selected_tld, delay, time
         mime="text/csv"
     )
 
+st.set_page_config(
+    page_title="Domain Availability Checker",
+    page_icon="🌐"
+)
+
 # Main App UI
 st.title("Domain Availability Checker")
 
-# Input for business type
-business_type = st.text_input("Business Type", value="janitorial")
+# Add a tab for viewing saved searches
+tab1, tab2, tab3 = st.tabs(["Enter Cities Manually", "Find Cities by Radius", "Saved Searches"])
+
+# Input for business type with validation
+business_type = st.text_input(
+    "Business Type",
+    value="janitorial",
+    max_chars=MAX_BUSINESS_TYPE_LENGTH,
+    help=f"Enter a business type (max {MAX_BUSINESS_TYPE_LENGTH} characters)"
+)
 
 # Parameters for domain checking - placed at top level for access everywhere
 with st.expander("Advanced Settings"):
-    delay = st.slider("Delay between requests (seconds)", 0.1, 2.0, 0.5, 0.1,
-                     help="Higher values reduce the risk of being blocked")
-    timeout = st.slider("Request timeout (seconds)", 1, 10, 3, 1,
-                       help="Time to wait for a domain to respond")
+    delay = st.slider(
+        "Delay between requests (seconds)",
+        0.1, 2.0, 0.5, 0.1,
+        help="Higher values reduce the risk of being blocked"
+    )
+    timeout = st.slider(
+        "Request timeout (seconds)",
+        1, 10, 3, 1,
+        help="Time to wait for a domain to respond"
+    )
 
     # Domain TLD options
-    tld_options = ["com", "net", "org", "io", "co"]
-    selected_tld = st.selectbox("Domain Extension (TLD)", tld_options, index=0)
-
-# Create tabs for different input methods
-tab1, tab2 = st.tabs(["Enter Cities Manually", "Find Cities by Radius"])
-
-# Variables to store the city list from radius search
-radius_search_cities = []
-show_radius_results = False
+    selected_tld = st.selectbox(
+        "Domain Extension (TLD)",
+        ALLOWED_TLDS,
+        index=0
+    )
 
 with tab1:
     # Input for cities
@@ -177,15 +313,52 @@ with tab2:
                     # Display the cities in a table
                     st.dataframe(city_df)
                     
-                    # Get the city list and store it
-                    cities_list = city_df["City"].tolist()
-                    
-                    # Display check domains button
-                    check_radius_domains = st.button("Check Domains for These Cities", type="primary")
-                    
-                    if check_radius_domains:
-                        # Run the domain check directly with these cities
-                        check_city_domains(cities_list, business_type, selected_tld, delay, timeout)
+                    # Store the city list in session state
+                    st.session_state.cities_list = city_df["City"].tolist()
+                    st.session_state.show_domain_check = True
+    
+    # Show the check domains button if we have cities
+    if st.session_state.show_domain_check and st.session_state.cities_list:
+        st.write("---")
+        st.write("Found cities are ready for domain checking!")
+        check_radius_domains = st.button("Check Domains for These Cities", type="primary")
+        
+        if check_radius_domains:
+            # Run the domain check with the stored cities
+            check_city_domains(st.session_state.cities_list, business_type, selected_tld, delay, timeout)
+
+with tab3:
+    st.subheader("Saved Searches")
+    
+    # Load and display saved searches
+    saved_searches = load_saved_searches()
+    
+    if not saved_searches:
+        st.info("No saved searches yet. Save your searches to view them here!")
+    else:
+        for search in saved_searches:
+            with st.expander(f"Search from {search['timestamp']} - {search['business_type']}.{search['tld']}"):
+                df = pd.DataFrame(search['results'], columns=["Domain", "Status"])
+                
+                # Apply the same styling as in the main results
+                def highlight_status(val):
+                    if val == "Available":
+                        return 'background-color: #2E7D32; color: white'
+                    elif "Active Website" in val:
+                        return 'background-color: #C62828; color: white'
+                    else:
+                        return 'background-color: #F9A825; color: black'
+                
+                st.dataframe(df.style.map(highlight_status, subset=['Status']))
+                
+                # Add download button for this saved search
+                csv = df.to_csv(index=False)
+                st.download_button(
+                    label="Download This Search as CSV",
+                    data=csv,
+                    file_name=f"saved_search_{search['timestamp']}.csv",
+                    mime="text/csv"
+                )
 
 # Display some example instructions
 with st.expander("How to use this tool"):
@@ -200,7 +373,8 @@ with st.expander("How to use this tool"):
     3. Choose a domain extension (.com, .net, etc.)
     4. Adjust the delay and timeout settings if needed
     5. Click "Check Domain Availability" to start the process
-    6. Download the results as a CSV file
+    6. Save your searches to view them later
+    7. Download the results as a CSV file
     
     ### Status Meanings:
     - **Available:** The domain is likely available for registration
