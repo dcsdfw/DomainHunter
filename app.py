@@ -122,10 +122,10 @@ def display_results(results, key_prefix=None):
         else:
             return 'background-color: #F9A825; color: black'  # Dark yellow with black text
     
-    # Add affiliate link column for available domains
+    # Add affiliate link column for available domains (for CSV/download only)
     def make_affiliate_link(domain, status):
         if status == "Available":
-            return f"[Register on Namecheap](https://www.namecheap.com/domains/registration/results/?domain={domain}&aff=529630)"
+            return f"https://www.namecheap.com/domains/registration/results/?domain={domain}&aff=529630"
         return ""
     
     df["Register"] = [make_affiliate_link(row[0], row[1]) for row in results]
@@ -133,6 +133,16 @@ def display_results(results, key_prefix=None):
     # Show results with styling
     st.subheader("Results")
     st.dataframe(df.style.map(highlight_status, subset=['Status']))
+    
+    # Show clickable links for available domains
+    available_domains = [row[0] for row in results if row[1] == "Available"]
+    if available_domains:
+        st.markdown("### Register Available Domains")
+        for domain in available_domains:
+            st.markdown(
+                f'<a href="https://www.namecheap.com/domains/registration/results/?domain={domain}&aff=529630" target="_blank">Register {domain} on Namecheap</a>',
+                unsafe_allow_html=True
+            )
     
     # Count availability stats
     available_count = df[df['Status'] == 'Available'].shape[0]
