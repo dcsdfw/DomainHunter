@@ -109,7 +109,7 @@ def save_search(results, business_type, selected_tld, cities):
     
     st.session_state.saved_searches = load_saved_searches()
 
-def display_results(results):
+def display_results(results, key_prefix=None):
     """Display results with affiliate links for available domains"""
     df = pd.DataFrame(results, columns=["Domain", "Status"])
     
@@ -149,13 +149,14 @@ def display_results(results):
     with col3:
         st.metric("Registered (Inactive)", registered_inactive_count, f"{registered_inactive_count/len(results):.0%}")
     
-    # Add download button for CSV
+    # Add download button for CSV with unique key
     csv = df.to_csv(index=False)
     st.download_button(
         label="Download Results as CSV",
         data=csv,
         file_name=f"domain_results.csv",
-        mime="text/csv"
+        mime="text/csv",
+        key=f"download_{key_prefix}_{hash(csv)}" if key_prefix is not None else f"download_{hash(csv)}"
     )
 
 @rate_limit
@@ -348,7 +349,7 @@ with tab3:
     if 'saved_searches' in st.session_state and st.session_state.saved_searches:
         for i, search in enumerate(st.session_state.saved_searches):
             with st.expander(f"Search {i+1}: {search['business_type']} in {', '.join(search['cities'])}"):
-                display_results(search['results'])
+                display_results(search['results'], key_prefix=i)
                 # Add download button for each search
                 if st.button(f"Download Results {i+1}"):
                     download_results(search['results'])
