@@ -106,6 +106,55 @@ def save_search(results, business_type, selected_tld):
     
     st.session_state.saved_searches = load_saved_searches()
 
+def display_results(results):
+    """Display results with affiliate links for available domains"""
+    df = pd.DataFrame(results, columns=["Domain", "Status"])
+    
+    # Add color coding based on availability with better contrast
+    def highlight_status(val):
+        if val == "Available":
+            return 'background-color: #2E7D32; color: white'  # Dark green with white text
+        elif "Active Website" in val:
+            return 'background-color: #C62828; color: white'  # Dark red with white text
+        else:
+            return 'background-color: #F9A825; color: black'  # Dark yellow with black text
+    
+    # Add affiliate link column for available domains
+    def make_affiliate_link(domain, status):
+        if status == "Available":
+            return f"[Register on Namecheap](https://www.namecheap.com/domains/registration/results/?domain={domain}&aff=529630)"
+        return ""
+    
+    df["Register"] = [make_affiliate_link(row[0], row[1]) for row in results]
+    
+    # Show results with styling
+    st.subheader("Results")
+    st.dataframe(df.style.map(highlight_status, subset=['Status']))
+    
+    # Count availability stats
+    available_count = df[df['Status'] == 'Available'].shape[0]
+    registered_active_count = df[df['Status'] == 'Registered (Active Website)'].shape[0]
+    registered_inactive_count = df[df['Status'] == 'Registered (No Active Website)'].shape[0]
+    
+    # Display stats
+    st.subheader("Summary")
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        st.metric("Available", available_count, f"{available_count/len(results):.0%}")
+    with col2:
+        st.metric("Registered (Active)", registered_active_count, f"{registered_active_count/len(results):.0%}")
+    with col3:
+        st.metric("Registered (Inactive)", registered_inactive_count, f"{registered_inactive_count/len(results):.0%}")
+    
+    # Add download button for CSV
+    csv = df.to_csv(index=False)
+    st.download_button(
+        label="Download Results as CSV",
+        data=csv,
+        file_name=f"domain_results.csv",
+        mime="text/csv"
+    )
+
 @rate_limit
 def check_city_domains(cities_to_check, business_type, selected_tld, delay, timeout):
     """Perform domain checks with rate limiting and input validation"""
@@ -138,9 +187,6 @@ def check_city_domains(cities_to_check, business_type, selected_tld, delay, time
     progress_bar = st.progress(0)
     status_text = st.empty()
     
-    # Create a placeholder for the results
-    results_placeholder = st.empty()
-    
     # Process domains in batches to update UI
     results = []
     for i, city in enumerate(cities_to_check):
@@ -153,59 +199,18 @@ def check_city_domains(cities_to_check, business_type, selected_tld, delay, time
         domain = f"{city.lower().replace(' ', '')}{business_type}.{selected_tld}"
         status = check_domains([domain], delay, timeout)[0][1]
         results.append([domain, status])
-        
-        # Update results table
-        df = pd.DataFrame(results, columns=["Domain", "Status"])
-        results_placeholder.dataframe(df)
     
     # Final update
     progress_bar.progress(1.0)
     status_text.text(f"Completed checking {len(cities_to_check)} domains!")
     
-    # Convert to pandas DataFrame for final display
-    df = pd.DataFrame(results, columns=["Domain", "Status"])
-    
-    # Add color coding based on availability with better contrast
-    def highlight_status(val):
-        if val == "Available":
-            return 'background-color: #2E7D32; color: white'  # Dark green with white text
-        elif "Active Website" in val:
-            return 'background-color: #C62828; color: white'  # Dark red with white text
-        else:
-            return 'background-color: #F9A825; color: black'  # Dark yellow with black text
-    
-    # Show results with styling
-    st.subheader("Results")
-    st.dataframe(df.style.map(highlight_status, subset=['Status']))
-    
-    # Count availability stats
-    available_count = df[df['Status'] == 'Available'].shape[0]
-    registered_active_count = df[df['Status'] == 'Registered (Active Website)'].shape[0]
-    registered_inactive_count = df[df['Status'] == 'Registered (No Active Website)'].shape[0]
-    
-    # Display stats
-    st.subheader("Summary")
-    col1, col2, col3 = st.columns(3)
-    with col1:
-        st.metric("Available", available_count, f"{available_count/len(cities_to_check):.0%}")
-    with col2:
-        st.metric("Registered (Active)", registered_active_count, f"{registered_active_count/len(cities_to_check):.0%}")
-    with col3:
-        st.metric("Registered (Inactive)", registered_inactive_count, f"{registered_inactive_count/len(cities_to_check):.0%}")
+    # Display results with affiliate links
+    display_results(results)
     
     # Add save search button
     if st.button("Save This Search"):
         save_search(results, business_type, selected_tld)
         st.success("Search saved successfully!")
-    
-    # Add download button for CSV
-    csv = df.to_csv(index=False)
-    st.download_button(
-        label="Download Results as CSV",
-        data=csv,
-        file_name=f"{business_type}_{selected_tld}_domains.csv",
-        mime="text/csv"
-    )
 
 st.set_page_config(
     page_title="Domain Availability Checker",
@@ -214,151 +219,6 @@ st.set_page_config(
 
 # Main App UI
 st.title("Domain Availability Checker")
-
-# Add a tab for viewing saved searches
-tab1, tab2, tab3 = st.tabs(["Enter Cities Manually", "Find Cities by Radius", "Saved Searches"])
-
-# Input for business type with validation
-business_type = st.text_input(
-    "Business Type",
-    value="janitorial",
-    max_chars=MAX_BUSINESS_TYPE_LENGTH,
-    help=f"Enter a business type (max {MAX_BUSINESS_TYPE_LENGTH} characters)"
-)
-
-# Parameters for domain checking - placed at top level for access everywhere
-with st.expander("Advanced Settings"):
-    delay = st.slider(
-        "Delay between requests (seconds)",
-        0.1, 2.0, 0.5, 0.1,
-        help="Higher values reduce the risk of being blocked"
-    )
-    timeout = st.slider(
-        "Request timeout (seconds)",
-        1, 10, 3, 1,
-        help="Time to wait for a domain to respond"
-    )
-
-    # Domain TLD options
-    selected_tld = st.selectbox(
-        "Domain Extension (TLD)",
-        ALLOWED_TLDS,
-        index=0
-    )
-
-with tab1:
-    # Input for cities
-    cities_input = st.text_area(
-        "Enter cities (one per line)",
-        height=150,
-        help="Enter each city on a new line"
-    )
-    
-    # Check domains button for manual entry
-    if st.button("Check Domain Availability", type="primary"):
-        if not cities_input:
-            st.error("Please enter at least one city or use the radius search to find cities.")
-        else:
-            cities_to_check = [city.strip() for city in cities_input.split('\n') if city.strip()]
-            
-            if not cities_to_check:
-                st.error("No valid cities found in the input.")
-            else:
-                check_city_domains(cities_to_check, business_type, selected_tld, delay, timeout)
-
-with tab2:
-    col1, col2 = st.columns(2)
-    
-    with col1:
-        major_city = st.text_input("Major City", placeholder="e.g. Dallas")
-        state_code = st.text_input("State (optional)", placeholder="e.g. TX", max_chars=2,
-                                  help="Two-letter state code to improve search accuracy")
-    
-    with col2:
-        radius = st.slider("Radius (miles)", 5, 100, 25, 5,
-                          help="Search for cities within this distance")
-        max_cities = st.slider("Max Cities", 5, 50, 20, 5,
-                              help="Maximum number of cities to include")
-    
-    # Button to find nearby cities
-    search_clicked = st.button("Find Nearby Cities")
-    
-    if search_clicked:
-        if not major_city:
-            st.error("Please enter a major city.")
-        else:
-            with st.spinner(f"Finding cities within {radius} miles of {major_city}..."):
-                # First try the hardcoded city data (faster and more reliable)
-                nearby_cities = find_nearby_cities(major_city, radius, max_cities)
-                
-                if not nearby_cities:
-                    # If not found in hardcoded data, try the geocoding method
-                    st.info(f"Searching for cities near {major_city}...")
-                    coords = get_city_coordinates(major_city, state_code)
-                    if not coords:
-                        st.error(f"Could not find coordinates for {major_city}. Please check the city name and try again.")
-                    else:
-                        nearby_cities = find_cities_in_radius(major_city, radius, state_code, max_cities)
-                
-                if not nearby_cities:
-                    st.warning(f"No cities found within {radius} miles of {major_city}. Try a larger radius or a different major city.")
-                else:
-                    # Display the found cities
-                    st.success(f"Found {len(nearby_cities)} cities within {radius} miles of {major_city}!")
-                    
-                    # Create a DataFrame with the cities and distances
-                    city_df = pd.DataFrame(nearby_cities, columns=["City", "Distance (miles)"])
-                    city_df["Distance (miles)"] = city_df["Distance (miles)"].round(1)
-                    
-                    # Display the cities in a table
-                    st.dataframe(city_df)
-                    
-                    # Store the city list in session state
-                    st.session_state.cities_list = city_df["City"].tolist()
-                    st.session_state.show_domain_check = True
-    
-    # Show the check domains button if we have cities
-    if st.session_state.show_domain_check and st.session_state.cities_list:
-        st.write("---")
-        st.write("Found cities are ready for domain checking!")
-        check_radius_domains = st.button("Check Domains for These Cities", type="primary")
-        
-        if check_radius_domains:
-            # Run the domain check with the stored cities
-            check_city_domains(st.session_state.cities_list, business_type, selected_tld, delay, timeout)
-
-with tab3:
-    st.subheader("Saved Searches")
-    
-    # Load and display saved searches
-    saved_searches = load_saved_searches()
-    
-    if not saved_searches:
-        st.info("No saved searches yet. Save your searches to view them here!")
-    else:
-        for search in saved_searches:
-            with st.expander(f"Search from {search['timestamp']} - {search['business_type']}.{search['tld']}"):
-                df = pd.DataFrame(search['results'], columns=["Domain", "Status"])
-                
-                # Apply the same styling as in the main results
-                def highlight_status(val):
-                    if val == "Available":
-                        return 'background-color: #2E7D32; color: white'
-                    elif "Active Website" in val:
-                        return 'background-color: #C62828; color: white'
-                    else:
-                        return 'background-color: #F9A825; color: black'
-                
-                st.dataframe(df.style.map(highlight_status, subset=['Status']))
-                
-                # Add download button for this saved search
-                csv = df.to_csv(index=False)
-                st.download_button(
-                    label="Download This Search as CSV",
-                    data=csv,
-                    file_name=f"saved_search_{search['timestamp']}.csv",
-                    mime="text/csv"
-                )
 
 # Display some example instructions
 with st.expander("How to use this tool"):
@@ -391,3 +251,87 @@ with st.expander("How to use this tool"):
     
     The tool will check if domains like "dallasjanitorial.com" are available for registration.
     """)
+
+# Parameters for domain checking - placed after How to use this tool
+with st.expander("Advanced Settings"):
+    delay = st.slider(
+        "Delay between requests (seconds)",
+        0.1, 2.0, 0.5, 0.1,
+        help="Higher values reduce the risk of being blocked"
+    )
+    timeout = st.slider(
+        "Request timeout (seconds)",
+        1, 10, 3, 1,
+        help="Time to wait for a domain to respond"
+    )
+
+    # Domain TLD options
+    selected_tld = st.selectbox(
+        "Domain Extension (TLD)",
+        ALLOWED_TLDS,
+        index=0
+    )
+
+# Business type input above tabs
+if 'business_type' not in st.session_state:
+    st.session_state.business_type = "janitorial"
+
+business_type = st.text_input(
+    "Business Type",
+    value=st.session_state.business_type,
+    help="Enter the type of business (e.g., janitorial, plumbing, etc.)"
+)
+st.session_state.business_type = business_type
+
+# Add a tab for viewing saved searches
+tab1, tab2, tab3 = st.tabs(["Enter Cities Manually", "Find Cities by Radius", "Saved Searches"])
+
+with tab1:
+    # Input for cities
+    cities_input = st.text_area(
+        "Enter Cities",
+        height=150,
+        help="Enter one city per line"
+    )
+
+    if st.button("Check Domain Availability"):
+        if not cities_input.strip():
+            st.error("Please enter at least one city")
+        else:
+            cities = [city.strip() for city in cities_input.split('\n') if city.strip()]
+            with st.spinner("Checking domain availability..."):
+                results = check_domains(cities, business_type, selected_tld, delay, timeout)
+                display_results(results)
+                save_search(results, business_type, selected_tld)
+
+with tab2:
+    # Input for finding nearby cities
+    col1, col2 = st.columns(2)
+    with col1:
+        city = st.text_input("Enter a city name")
+    with col2:
+        radius = st.number_input("Radius (miles)", min_value=1, max_value=100, value=25)
+
+    if st.button("Find Nearby Cities"):
+        if not city:
+            st.error("Please enter a city name")
+        else:
+            with st.spinner("Finding nearby cities..."):
+                nearby_cities = find_nearby_cities(city, radius)
+                if nearby_cities:
+                    st.success(f"Found {len(nearby_cities)} cities within {radius} miles of {city}")
+                    st.write(nearby_cities)
+                else:
+                    st.error("No cities found or error occurred")
+
+with tab3:
+    # Display saved searches
+    if 'saved_searches' in st.session_state and st.session_state.saved_searches:
+        for i, search in enumerate(st.session_state.saved_searches):
+            with st.expander(f"Search {i+1}: {search['business_type']} in {', '.join(search['cities'])}"):
+                display_results(search['results'])
+                # Add download button for each search
+                if st.button(f"Download Results {i+1}"):
+                    download_results(search['results'])
+    else:
+        st.info("No saved searches yet. Perform a search to save results.")
