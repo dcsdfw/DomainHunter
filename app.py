@@ -111,45 +111,48 @@ def save_search(results, business_type, selected_tld, cities):
 
 def display_results(results, key_prefix=None):
     """Display results with affiliate links for available domains"""
-    df = pd.DataFrame(results, columns=["Domain", "Status"])
-    
-    # Add color coding based on availability with better contrast
-    def highlight_status(val):
-        if val == "Available":
-            return 'background-color: #2E7D32; color: white'  # Dark green with white text
-        elif "Active Website" in val:
-            return 'background-color: #C62828; color: white'  # Dark red with white text
-        else:
-            return 'background-color: #F9A825; color: black'  # Dark yellow with black text
-    
-    # Add affiliate link column for available domains (for CSV/download only)
-    def make_affiliate_link(domain, status):
-        if status == "Available":
-            return f"https://www.namecheap.com/domains/registration/results/?domain={domain}&aff=529630"
-        return ""
-    
-    df["Register"] = [make_affiliate_link(row[0], row[1]) for row in results]
-    
-    # Show results with styling
     st.subheader("Results")
-    st.dataframe(df.style.map(highlight_status, subset=['Status']))
-    
-    # Show Register buttons for available domains
-    available_domains = [row[0] for row in results if row[1] == "Available"]
-    if available_domains:
-        st.markdown("### Register Available Domains")
-        for domain in available_domains:
+    # Table header
+    cols = st.columns([3, 2, 2])
+    cols[0].markdown("**Domain**")
+    cols[1].markdown("**Status**")
+    cols[2].markdown("**Register**")
+
+    for idx, (domain, status) in enumerate(results):
+        cols = st.columns([3, 2, 2])
+        # Color the status cell
+        if status == "Available":
+            status_md = f'<span style="color:white;background:#2E7D32;padding:2px 8px;border-radius:4px;">{status}</span>'
+        elif "Active Website" in status:
+            status_md = f'<span style="color:white;background:#C62828;padding:2px 8px;border-radius:4px;">{status}</span>'
+        else:
+            status_md = f'<span style="color:black;background:#F9A825;padding:2px 8px;border-radius:4px;">{status}</span>'
+
+        cols[0].markdown(domain)
+        cols[1].markdown(status_md, unsafe_allow_html=True)
+        if status == "Available":
             namecheap_url = f"https://www.namecheap.com/domains/registration/results/?domain={domain}&aff=529630"
-            button_key = f"register_{domain}_{key_prefix if key_prefix is not None else ''}"
-            if st.button(f"Register {domain} on Namecheap", key=button_key):
-                js = f"window.open('{namecheap_url}')"
-                st.markdown(f"<script>{js}</script>", unsafe_allow_html=True)
-    
+            button_html = f'''
+                <a href="{namecheap_url}" target="_blank" style="
+                    display:inline-block;
+                    padding:6px 16px;
+                    background:#1976D2;
+                    color:white;
+                    border-radius:4px;
+                    text-decoration:none;
+                    font-weight:bold;
+                ">Register</a>
+            '''
+            cols[2].markdown(button_html, unsafe_allow_html=True)
+        else:
+            cols[2].markdown("-")
+
     # Count availability stats
+    df = pd.DataFrame(results, columns=["Domain", "Status"])
     available_count = df[df['Status'] == 'Available'].shape[0]
     registered_active_count = df[df['Status'] == 'Registered (Active Website)'].shape[0]
     registered_inactive_count = df[df['Status'] == 'Registered (No Active Website)'].shape[0]
-    
+
     # Display stats
     st.subheader("Summary")
     col1, col2, col3 = st.columns(3)
@@ -159,7 +162,7 @@ def display_results(results, key_prefix=None):
         st.metric("Registered (Active)", registered_active_count, f"{registered_active_count/len(results):.0%}")
     with col3:
         st.metric("Registered (Inactive)", registered_inactive_count, f"{registered_inactive_count/len(results):.0%}")
-    
+
     # Add download button for CSV with unique key
     csv = df.to_csv(index=False)
     st.download_button(
