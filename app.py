@@ -300,7 +300,9 @@ with tab1:
         else:
             cities = [city.strip() for city in cities_input.split('\n') if city.strip()]
             with st.spinner("Checking domain availability..."):
-                results = check_domains(cities, business_type, selected_tld, delay, timeout)
+                # Format domains before checking
+                domains_to_check = [f"{city.lower().replace(' ', '')}{business_type}.{selected_tld}" for city in cities]
+                results = check_domains(domains_to_check, delay, timeout)
                 display_results(results)
                 save_search(results, business_type, selected_tld)
 
@@ -320,7 +322,20 @@ with tab2:
                 nearby_cities = find_nearby_cities(city, radius)
                 if nearby_cities:
                     st.success(f"Found {len(nearby_cities)} cities within {radius} miles of {city}")
-                    st.write(nearby_cities)
+                    # Convert the list of lists to a DataFrame for better display
+                    df = pd.DataFrame(nearby_cities, columns=['City', 'Distance (miles)'])
+                    df = df.sort_values('Distance (miles)')  # Sort by distance
+                    st.dataframe(df, use_container_width=True)
+                    
+                    # Add a button to check domains for these cities
+                    if st.button("Check Domains for These Cities"):
+                        cities = df['City'].tolist()
+                        with st.spinner("Checking domain availability..."):
+                            # Format domains before checking
+                            domains_to_check = [f"{city.lower().replace(' ', '')}{business_type}.{selected_tld}" for city in cities]
+                            results = check_domains(domains_to_check, delay, timeout)
+                            display_results(results)
+                            save_search(results, business_type, selected_tld)
                 else:
                     st.error("No cities found or error occurred")
 
