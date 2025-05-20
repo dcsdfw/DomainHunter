@@ -196,6 +196,7 @@ def check_city_domains(cities_to_check, business_type, selected_tld, delay, time
     
     # Sanitize inputs
     business_type = sanitize_input(business_type)
+    business_type_nospaces = business_type.replace(' ', '').lower()
     cities_to_check = [sanitize_input(city) for city in cities_to_check]
     
     # Display information
@@ -214,7 +215,7 @@ def check_city_domains(cities_to_check, business_type, selected_tld, delay, time
         status_text.text(f"Checking domain for {city}... ({i+1}/{len(cities_to_check)})")
         
         # Check domain
-        domain = f"{city.lower().replace(' ', '')}{business_type}.{selected_tld}"
+        domain = f"{city.lower().replace(' ', '')}{business_type_nospaces}.{selected_tld}"
         status = check_domains([domain], delay, timeout)[0][1]
         results.append([domain, status])
     
@@ -317,9 +318,10 @@ with tab1:
             st.error("Please enter at least one city")
         else:
             cities = [city.strip() for city in cities_input.split('\n') if city.strip()]
+            business_type_nospaces = business_type.replace(' ', '').lower()
             with st.spinner("Checking domain availability..."):
                 # Format domains before checking
-                domains_to_check = [f"{city.lower().replace(' ', '')}{business_type}.{selected_tld}" for city in cities]
+                domains_to_check = [f"{city.lower().replace(' ', '')}{business_type_nospaces}.{selected_tld}" for city in cities]
                 results = check_domains(domains_to_check, delay, timeout)
                 display_results(results)
                 save_search(results, business_type, selected_tld, cities)
@@ -352,8 +354,9 @@ with tab2:
         st.dataframe(st.session_state.nearby_cities_df, use_container_width=True)
         if st.button("Check Domains for These Cities"):
             cities = st.session_state.nearby_cities_df['City'].tolist()
+            business_type_nospaces = business_type.replace(' ', '').lower()
             with st.spinner("Checking domain availability..."):
-                domains_to_check = [f"{city.lower().replace(' ', '')}{business_type}.{selected_tld}" for city in cities]
+                domains_to_check = [f"{city.lower().replace(' ', '')}{business_type_nospaces}.{selected_tld}" for city in cities]
                 results = check_domains(domains_to_check, delay, timeout)
                 display_results(results)
                 save_search(results, business_type, selected_tld, cities)
