@@ -334,4 +334,4 @@ with tab3:
                 if st.button(f"Download Results {i+1}"):
                     download_results(search['results'])
     else:
-        st.info("No saved searches yet. Perform a search to save results.")
+        st.info("No saved searches yet. Perform a search to save results.") 
