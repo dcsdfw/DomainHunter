@@ -89,7 +89,7 @@ def load_saved_searches():
                 saved_searches.append(json.load(f))
     return saved_searches
 
-def save_search(results, business_type, selected_tld):
+def save_search(results, business_type, selected_tld, cities):
     """Save search results to a JSON file"""
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     filename = f"{SAVED_SEARCHES_DIR}/search_{timestamp}.json"
@@ -98,7 +98,8 @@ def save_search(results, business_type, selected_tld):
         'timestamp': timestamp,
         'business_type': business_type,
         'tld': selected_tld,
-        'results': results
+        'results': results,
+        'cities': cities
     }
     
     with open(filename, 'w') as f:
@@ -209,7 +210,7 @@ def check_city_domains(cities_to_check, business_type, selected_tld, delay, time
     
     # Add save search button
     if st.button("Save This Search"):
-        save_search(results, business_type, selected_tld)
+        save_search(results, business_type, selected_tld, cities_to_check)
         st.success("Search saved successfully!")
 
 st.set_page_config(
@@ -304,7 +305,7 @@ with tab1:
                 domains_to_check = [f"{city.lower().replace(' ', '')}{business_type}.{selected_tld}" for city in cities]
                 results = check_domains(domains_to_check, delay, timeout)
                 display_results(results)
-                save_search(results, business_type, selected_tld)
+                save_search(results, business_type, selected_tld, cities)
 
 with tab2:
     # Input for finding nearby cities
@@ -335,7 +336,7 @@ with tab2:
                             domains_to_check = [f"{city.lower().replace(' ', '')}{business_type}.{selected_tld}" for city in cities]
                             results = check_domains(domains_to_check, delay, timeout)
                             display_results(results)
-                            save_search(results, business_type, selected_tld)
+                            save_search(results, business_type, selected_tld, cities)
                 else:
                     st.error("No cities found or error occurred")
 
