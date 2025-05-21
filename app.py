@@ -298,7 +298,7 @@ with st.expander("Advanced Settings"):
 
 # Business type input above tabs
 if 'business_type' not in st.session_state:
-    st.session_state.business_type = "janitorial"
+    st.session_state.business_type = "Enter your business industry (Janitorial, Plumbing, Etc.)"
 
 business_type = st.text_input(
     "Business Type",
