@@ -127,7 +127,7 @@ def display_results(results, key_prefix=None):
         cols = st.columns([3, 2, 2])
         # Color the status cell
         if status == "Available":
-            status_md = f'<span style="color:white;background:#1976D2;padding:2px 8px;border-radius:4px;">{status}</span>'
+            status_md = f'<span style="color:white;background:#2E7D32;padding:2px 8px;border-radius:4px;">{status}</span>'
         elif "Active Website" in status:
             status_md = f'<span style="color:white;background:#C62828;padding:2px 8px;border-radius:4px;">{status}</span>'
         else:
@@ -146,7 +146,8 @@ def display_results(results, key_prefix=None):
                     border-radius:4px;
                     text-decoration:none;
                     font-weight:bold;
-                ">Register</a>
+                    transition: background 0.2s, color 0.2s;
+                " class="custom-register-btn">Register</a>
             '''
             cols[2].markdown(button_html, unsafe_allow_html=True)
         else:
@@ -258,6 +259,30 @@ st.markdown("""
     <style>
         div[data-testid="stSuccess"] {
             background-color: #1976D2;
+        }
+    </style>
+""", unsafe_allow_html=True)
+
+# Add custom CSS for tab and button hover
+st.markdown("""
+    <style>
+        /* Tab text hover */
+        button[data-baseweb="tab"]:hover {
+            color: #1976D2 !important;
+        }
+        /* Register button hover */
+        a.custom-register-btn:hover {
+            background: #1565C0 !important;
+            color: #1976D2 !important;
+        }
+        /* Streamlit primary button hover (Check Domains, Find Nearby Cities, etc.) */
+        button.st-emotion-cache-7ym5gk.ef3psqc12:hover, /* Streamlit 1.22+ */
+        button.st-emotion-cache-19rxjzo.ef3psqc12:hover, /* Streamlit 1.25+ */
+        button.st-emotion-cache-1c7y2kd.ef3psqc12:hover, /* fallback for other versions */
+        button.st-emotion-cache-1c7y2kd.ef3psqc10:hover {
+            background-color: #1976D2 !important;
+            border-color: #1976D2 !important;
+            color: white !important;
         }
     </style>
 """, unsafe_allow_html=True)
