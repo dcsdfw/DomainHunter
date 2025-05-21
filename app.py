@@ -78,10 +78,16 @@ def validate_city(city):
         return False, "City name contains invalid characters"
     return True, ""
 
-def load_saved_searches():
-    """Load saved searches from JSON files"""
+def ensure_saved_searches_dir():
     if not os.path.exists(SAVED_SEARCHES_DIR):
         os.makedirs(SAVED_SEARCHES_DIR)
+
+# Ensure directory exists at startup
+ensure_saved_searches_dir()
+
+def load_saved_searches():
+    """Load saved searches from JSON files"""
+    ensure_saved_searches_dir()
     saved_searches = []
     for filename in os.listdir(SAVED_SEARCHES_DIR):
         if filename.endswith('.json'):
@@ -91,9 +97,7 @@ def load_saved_searches():
 
 def save_search(results, business_type, selected_tld, cities):
     """Save search results to a JSON file"""
-    # Create a directory for saved searches if it doesn't exist
-    if not os.path.exists(SAVED_SEARCHES_DIR):
-        os.makedirs(SAVED_SEARCHES_DIR)
+    ensure_saved_searches_dir()
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     filename = f"{SAVED_SEARCHES_DIR}/search_{timestamp}.json"
     
