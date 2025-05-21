@@ -287,6 +287,21 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
+# Add custom CSS for tab selection and hover
+st.markdown("""
+    <style>
+        /* Selected tab underline and text color */
+        button[data-baseweb="tab"][aria-selected="true"] {
+            color: #1976D2 !important;
+            border-bottom: 3px solid #1976D2 !important;
+        }
+        /* Unselected tab text hover */
+        button[data-baseweb="tab"][aria-selected="false"]:hover {
+            color: #1976D2 !important;
+        }
+    </style>
+""", unsafe_allow_html=True)
+
 # Display some example instructions
 with st.expander("How to use this tool"):
     st.markdown("""
