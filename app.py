@@ -80,6 +80,8 @@ def validate_city(city):
 
 def load_saved_searches():
     """Load saved searches from JSON files"""
+    if not os.path.exists(SAVED_SEARCHES_DIR):
+        os.makedirs(SAVED_SEARCHES_DIR)
     saved_searches = []
     for filename in os.listdir(SAVED_SEARCHES_DIR):
         if filename.endswith('.json'):
