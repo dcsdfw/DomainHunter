@@ -249,7 +249,7 @@ with st.expander("How to use this tool"):
     st.markdown("""
     ## How to Use This Tool
 
-    This tool helps you find out if website names are available. It is great for picking names for businesses in different cities.
+- This tool helps you find exact match domain names for your industry. You can add a list of cities or search by major city names to find their surrounding cities and suburbs.
 
     **Instructions:**
     1. Type in a kind of business (like "janitorial" or "plumber").
