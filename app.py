@@ -35,10 +35,6 @@ if 'session_id' not in st.session_state:
 if 'nearby_cities_df' not in st.session_state:
     st.session_state.nearby_cities_df = None
 
-# Create a directory for saved searches if it doesn't exist
-if not os.path.exists(SAVED_SEARCHES_DIR):
-    os.makedirs(SAVED_SEARCHES_DIR)
-
 def rate_limit(func):
     """Decorator to implement rate limiting"""
     @wraps(func)
@@ -93,6 +89,9 @@ def load_saved_searches():
 
 def save_search(results, business_type, selected_tld, cities):
     """Save search results to a JSON file"""
+    # Create a directory for saved searches if it doesn't exist
+    if not os.path.exists(SAVED_SEARCHES_DIR):
+        os.makedirs(SAVED_SEARCHES_DIR)
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     filename = f"{SAVED_SEARCHES_DIR}/search_{timestamp}.json"
     
@@ -363,7 +362,9 @@ with tab2:
 
 with tab3:
     # Display saved searches
-    if 'saved_searches' in st.session_state and st.session_state.saved_searches:
+    if 'saved_searches' not in st.session_state or not st.session_state.saved_searches:
+        st.session_state.saved_searches = load_saved_searches()
+    if st.session_state.saved_searches:
         for i, search in enumerate(st.session_state.saved_searches):
             with st.expander(f"Search {i+1}: {search['business_type']} in {', '.join(search['cities'])}"):
                 display_results(search['results'], key_prefix=i)
