@@ -126,6 +126,9 @@ NEARBY_CITIES = {
         ("Oro Valley", 14), ("Marana", 15), ("Sahuarita", 18), ("Green Valley", 25), ("Vail", 20),
         ("South Tucson", 5), ("Drexel Heights", 10), ("Flowing Wells", 8), ("Casas Adobes", 12), ("Catalina Foothills", 13)
     ],
+    "miami": [
+        ("Miami Beach", 5), ("Hialeah", 10), ("Coral Gables", 7), ("Doral", 12), ("North Miami", 9), ("Kendall", 14), ("Aventura", 15), ("Homestead", 30), ("Key Biscayne", 8), ("Pinecrest", 11)
+    ],
     # ... (continue for all other cities in the list not already present)
 }
 
@@ -155,16 +158,41 @@ def find_nearby_cities(center_city, radius_miles, max_cities=20):
             original_city = city_map[center_city_norm]
             st.write(f"Debug: Found city: '{original_city}'")
             
-            # Filter cities within the radius
-            cities_in_radius = [
-                (city, distance) for city, distance in NEARBY_CITIES[original_city]
-                if distance <= radius_miles
-            ]
-            
-            # Sort by distance and limit to max_cities
-            cities_in_radius.sort(key=lambda x: x[1])
-            st.write(f"Debug: Found {len(cities_in_radius)} cities within {radius_miles} miles")
-            return cities_in_radius[:max_cities]
+            # Auto-increase radius until at least 5 results or max 100 miles
+            step = 10
+            current_radius = radius_miles
+            while current_radius <= 100:
+                cities_in_radius = [
+                    (city, distance) for city, distance in NEARBY_CITIES[original_city]
+                    if distance <= current_radius
+                ]
+                if len(cities_in_radius) >= 5 or current_radius == 100:
+                    cities_in_radius.sort(key=lambda x: x[1])
+                    st.write(f"Debug: Found {len(cities_in_radius)} cities within {current_radius} miles")
+                    return cities_in_radius[:max_cities]
+                current_radius += step
+            return []
+        
+        # If not found, try a fuzzy match
+        for city_key in city_map.keys():
+            if center_city_norm in city_key or city_key in center_city_norm:
+                original_city = city_map[city_key]
+                st.write(f"Debug: Found similar city: '{original_city}'")
+                
+                # Auto-increase radius until at least 5 results or max 100 miles
+                step = 10
+                current_radius = radius_miles
+                while current_radius <= 100:
+                    cities_in_radius = [
+                        (city, distance) for city, distance in NEARBY_CITIES[original_city]
+                        if distance <= current_radius
+                    ]
+                    if len(cities_in_radius) >= 5 or current_radius == 100:
+                        cities_in_radius.sort(key=lambda x: x[1])
+                        st.write(f"Debug: Found {len(cities_in_radius)} cities within {current_radius} miles")
+                        return cities_in_radius[:max_cities]
+                    current_radius += step
+                return []
         
         st.write(f"Debug: City '{center_city_norm}' not found in database")
         st.write(f"Debug: Available cities: {', '.join(sorted(city_map.keys()))}")
