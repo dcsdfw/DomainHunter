@@ -231,43 +231,43 @@ def check_city_domains(cities_to_check, business_type, selected_tld, delay, time
         st.success("Search saved successfully!")
 
 st.set_page_config(
-    page_title="Domain Availability Checker",
+    page_title="Exact Match Domain Generator",
     page_icon="🌐"
 )
 
 # Main App UI
-st.title("Domain Availability Checker")
+st.title("Exact Match Domain Generator")
 
 # Display some example instructions
 with st.expander("How to use this tool"):
     st.markdown("""
-    ## Domain Availability Checker
-    
-    This tool helps you check if domain names are available for registration. It's useful for finding business domain names across multiple locations.
-    
-    ### Instructions:
-    1. Enter a business type (default is "janitorial")
-    2. Enter cities, one per line
-    3. Choose a domain extension (.com, .net, etc.)
-    4. Adjust the delay and timeout settings if needed
-    5. Click "Check Domain Availability" to start the process
-    6. Save your searches to view them later
-    7. Download the results as a CSV file
-    
-    ### Status Meanings:
-    - **Available:** The domain is likely available for registration
-    - **Registered (Active Website):** Domain is taken and has an active website
-    - **Registered (No Active Website):** Domain is registered but doesn't have an active website
-    
-    ### Example cities:
+    ## How to Use This Tool
+
+    This tool helps you find out if website names are available. It is great for picking names for businesses in different cities.
+
+    **Instructions:**
+    1. Type in a kind of business (like "janitorial" or "plumber").
+    2. Type in city names, one on each line.
+    3. Pick a website ending (like .com, .net, etc.).
+    4. You can change the speed settings if you want.
+    5. Click the button to check if the website names are available.
+    6. You can save your searches to look at them later.
+    7. You can also download your results as a file.
+
+    **What the results mean:**
+    - **Available:** You can buy this website name.
+    - **Registered (Active Website):** Someone else owns this name and has a website.
+    - **Registered (No Active Website):** Someone owns this name, but there is no website.
+
+    **Example cities:**
     ```
     Dallas
     Fort Worth
     Arlington
     Plano
     ```
-    
-    The tool will check if domains like "dallasjanitorial.com" are available for registration.
+
+    The tool will check if names like "dallasjanitorial.com" are available to buy.
     """)
 
 # Parameters for domain checking - placed after How to use this tool
