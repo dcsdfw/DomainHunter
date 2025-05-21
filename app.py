@@ -127,7 +127,7 @@ def display_results(results, key_prefix=None):
         cols = st.columns([3, 2, 2])
         # Color the status cell
         if status == "Available":
-            status_md = f'<span style="color:white;background:#2E7D32;padding:2px 8px;border-radius:4px;">{status}</span>'
+            status_md = f'<span style="color:white;background:#1976D2;padding:2px 8px;border-radius:4px;">{status}</span>'
         elif "Active Website" in status:
             status_md = f'<span style="color:white;background:#C62828;padding:2px 8px;border-radius:4px;">{status}</span>'
         else:
@@ -241,8 +241,26 @@ st.set_page_config(
     page_icon="🌐"
 )
 
+# Add custom CSS to change link hover color
+st.markdown("""
+    <style>
+        a:hover {
+            color: #1976D2 !important;
+        }
+    </style>
+""", unsafe_allow_html=True)
+
 # Main App UI
 st.title("Exact Match Domain Generator")
+
+# Add custom CSS to change success message color
+st.markdown("""
+    <style>
+        div[data-testid="stSuccess"] {
+            background-color: #1976D2;
+        }
+    </style>
+""", unsafe_allow_html=True)
 
 # Display some example instructions
 with st.expander("How to use this tool"):
