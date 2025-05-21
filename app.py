@@ -417,9 +417,12 @@ with tab2:
         st.dataframe(st.session_state.nearby_cities_df, use_container_width=True)
         if st.button("Check Domains for These Cities"):
             cities = st.session_state.nearby_cities_df['City'].tolist()
+            # Ensure the main city is included
+            if city and city.strip() and city.strip() not in cities:
+                cities = [city.strip()] + cities
             business_type_nospaces = business_type.replace(' ', '').lower()
             with st.spinner("Checking domain availability..."):
-                domains_to_check = [f"{city.lower().replace(' ', '')}{business_type_nospaces}.{selected_tld}" for city in cities]
+                domains_to_check = [f"{c.lower().replace(' ', '')}{business_type_nospaces}.{selected_tld}" for c in cities]
                 results = check_domains(domains_to_check, delay, timeout)
                 display_results(results)
                 save_search(results, business_type, selected_tld, cities)
