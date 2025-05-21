@@ -273,10 +273,9 @@ with st.expander("How to use this tool"):
     1. Type in a kind of business (like "janitorial" or "plumber").
     2. Type in city names, one on each line.
     3. Pick a website ending (like .com, .net, etc.).
-    4. You can change the speed settings if you want.
-    5. Click the button to check if the website names are available.
-    6. You can save your searches to look at them later.
-    7. You can also download your results as a file.
+    4. Click the button to check if the website names are available.
+    5. You can save your searches.
+    6. You can also download your results as a .csv.
 
     **What the results mean:**
     - **Available:** You can buy this website name.
